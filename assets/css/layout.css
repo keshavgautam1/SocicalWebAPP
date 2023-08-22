@@ -1,0 +1,13 @@
+body {
+  margin: 0;
+}
+body #layout-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensure layout-main takes up at least the viewport height */
+}
+body #layout-main main {
+  flex: 1; /* Expand main to fill remaining space */
+}
+
+/*# sourceMappingURL=layout.css.map */
