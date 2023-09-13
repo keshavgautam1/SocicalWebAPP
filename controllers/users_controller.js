@@ -1,112 +1,126 @@
-const User = require('../models/user'); // Import the User model
+const User = require('../models/user');
+const fs = require('fs');
+const path = require('path');
 
 module.exports.profile = async function(req, res) {
-    try {
-        // Fetch the user profile by the provided ID using async/await
-        const user = await User.findById(req.params.id);
+try{
+    let user = await User.findById(req.params.id);
+    return res.render('user_profile', {
+        title: 'User Profile',
+        profile_user: user
+    });
 
-        // Check if user is found
-        if (!user) {
-            // Handle the case when the user is not found by rendering an appropriate view
-            return res.render('user_not_found', {
-                title: "User Not Found"
+    }catch(err){
+        console.log('Error', err);
+        return redirect('back');
+    }
+
+}
+ 
+module.exports.update = async function(req, res){
+    
+    if(req.user.id == req.params.id){
+        try{
+            let user = await User.findById(req.params.id);
+            User.uploadedAvatar(req, res, function(err){
+                if(err){
+                    console.log('Multer Error', err);
+                }
+                user.name = req.body.name;
+                user.email = req.body.email;
+                if(req.file){
+
+                    if(user.avatar){
+                        fs.unlinkSync(path.join(__dirname,'..', user.avatar));
+                    }
+                    //this is saving the path of the uploaded file into the avatar field in the user
+                    user.avatar = User.avatarPath + '/' + req.file.filename;
+                }
+                user.save();
+                return res.redirect('back');
             });
         }
 
-        // Render the user profile view with the fetched user data
-        return res.render('user_profile', {
-            title: "User Profile",
-            profile_user: user
-        });
-    } catch (err) {
-        // If an error occurs during the fetching process, log the error
-        console.error('Error in fetching user profile:', err);
-
-        // Handle the error case by rendering an error view
-        return res.render('error', {
-            title: "Server Error"
-        });
-    }
-};
-
-module.exports.update = async function(req, res) {
-    try {
-        // Check if the authenticated user owns the profile being updated
-        if (req.user.id == req.params.id) {
-            // Update the user's data using async/await
-            await User.findByIdAndUpdate(req.params.id, req.body);
-
-            // Redirect back to the previous page after updating the user profile
+        catch(err){
+            req.flash('error', err);
             return res.redirect('back');
-        } else {
-            // Send a 401 Unauthorized status if the user is not authorized to update the profile
-            return res.status(401).send('Unauthorized');
         }
-    } catch (err) {
-        // Handle any errors that occurred during the process
-        console.error('Error in updating user:', err);
-
-        // Handle the error case by rendering an error view
-        return res.render('error', {
-            title: "Server Error"
-        });
+    }
+    else{
+        req.flash('error', 'Unauthorized');
+        return res.status(401).send('Unauthorized');
     }
 }
+
 
 
 // render the sign up page
 module.exports.signUp = function(req, res){
-    if(req.isAuthenticated()){
-       return res.redirect('/users/profile');
+    if (req.isAuthenticated()){
+        return res.redirect('/users/profile');
     }
+
+
     return res.render('user_sign_up', {
-        title: "Socionise | Sign Up"
-    });
+        title: "Socionize | Sign Up"
+    })
 }
+
 
 // render the sign in page
 module.exports.signIn = function(req, res){
-    if(req.isAuthenticated()){
-       return res.redirect('/users/profile');
+
+    if (req.isAuthenticated()){
+        return res.redirect('/users/profile');
     }
-    
     return res.render('user_sign_in', {
-        title: "Socionise | Sign In"
-    });
+        title: "Socionize | Sign In"
+    })
 }
 
 // get the sign up data
-module.exports.create = async function(req, res){
+module.exports.create = async function(req, res) {
+    if (req.body.password != req.body.confirm_password) {
+        req.flash('error', 'Passwords do not match');
+        return res.redirect('back');
+    }
+
     try {
-        if (req.body.password !== req.body.confirm_password) {
-            return res.redirect('back');
-        }
-
-        const existingUser = await User.findOne({ email: req.body.email });
-
-        if (!existingUser) {
-            const newUser = await User.create(req.body);
-            return res.redirect('/users/sign-in'); // Corrected redirection path
+        const user = await User.findOne({ email: req.body.email });
+        
+        if (!user) {
+            await User.create(req.body);
+            req.flash('success', 'You have signed up, login to continue!');
+            return res.redirect('/users/sign-in');
         } else {
+            req.flash('success', 'You have signed up, login to continue!');
             return res.redirect('back');
         }
     } catch (err) {
-        console.error('Error in creating user while signing up:', err);
-        return res.redirect('back');
+        req.flash('error', err);
+        return;
     }
-}
+};
 
 // sign in and create a session for the user
-module.exports.createSession = function(req, res){
+module.exports.createSession = function(req, res) {
+    req.flash('success', 'Logged in Successfully');
     return res.redirect('/');
-}
+};
 
-module.exports.destroySession = function(req, res){
-    req.logout(function(err) {
-        if (err) {
-            console.error('Error in destroying session:', err);
-            return;
-        }
+module.exports.destroySession = function(req, res) {
+    try {
+        req.logout(function(err) {
+            if (err) {
+                console.log(err);
+            }
+            req.flash('success', 'You have logged out!');
+            return res.redirect('/');
+        });
+    } catch (err) {
+        console.log(err);
         return res.redirect('/');
-    });
-}
+    }
+};
+
+

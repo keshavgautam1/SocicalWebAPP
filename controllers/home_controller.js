@@ -1,32 +1,46 @@
-// Import necessary models
 const Post = require('../models/post');
 const User = require('../models/user');
 
-// Controller function for the home route
-module.exports.home = async function(req, res) {
-    try {
-        // Fetch all posts, populate user and comments
-        const posts = await Post.find({})
-            .populate('user')  // Populate the 'user' field with user data
-            .populate({
-                path: 'comments',  // Populate the 'comments' field
-                populate: {
-                    path: 'user'  // Populate the 'user' field within comments
-                }
-            })
-            .exec();  // Execute the query
 
-      
-        const users = await User.find({}).exec();  // Fetch all user data
 
-        // Render the home view with posts and users
+module.exports.home = async function(req, res){
+
+    try{
+         // CHANGE :: populate the likes of each post and comment
+        let posts = await Post.find({})
+        .sort('-createdAt')
+        .populate('user')
+        .populate({
+            path: 'comments',
+            populate: {
+                path: 'user'
+            },
+            populate:{
+                path: 'likes'
+            }
+        }).populate('likes');
+    
+        let users = await User.find({});
+
         return res.render('home', {
             title: "Socionize | Home",
-            posts: posts,       // Pass the fetched posts to the view
-            all_users: users    // Pass the fetched users to the view
+            posts:  posts,
+            all_users: users
         });
-    } catch (err) {
-        // If an error occurs in the try block, catch and log it
-        console.error("Error in home controller:", err);
+
+    }catch(err){
+        console.log('Error', err);
+        return;
     }
-};
+   
+}
+
+// module.exports.actionName = function(req, res){}
+
+
+// using then
+// Post.find({}).populate('comments').then(function());
+
+// let posts = Post.find({}).populate('comments').exec();
+
+// posts.then()
